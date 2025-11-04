@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NBA Lineup Efficiency Predictor - Streamlit App with Bayesian + CNN-LSTM Ensemble
+NBA Lineup Efficiency Predictor - Streamlit App with Bayesian + LSTM Ensemble
 """
 
 import streamlit as st
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 try:
     from ee_utils import DataProcessor
     from ml_utils import BayesianNetworkModel
-    from cnn_lstm_utils import CNNLSTMModel  # NEW IMPORT
+    from lstm_utils import LSTMModel  # ADAPTED: LSTM instead of CNN-LSTM
 except ImportError as e:
     st.error(f"Import error: {e}. Make sure utils/ directory exists with all required files")
     st.stop()
@@ -106,20 +106,20 @@ def initialize_session_state():
         st.session_state.data_processor = DataProcessor()
     if 'bayesian_model' not in st.session_state:
         st.session_state.bayesian_model = BayesianNetworkModel()
-    if 'cnn_lstm_model' not in st.session_state:  # NEW
-        st.session_state.cnn_lstm_model = CNNLSTMModel()
+    if 'lstm_model' not in st.session_state:  # ADAPTED: LSTM
+        st.session_state.lstm_model = LSTMModel()
     if 'data_loaded' not in st.session_state:
         st.session_state.data_loaded = False
     if 'bayesian_trained' not in st.session_state:
         st.session_state.bayesian_trained = False
-    if 'cnn_lstm_trained' not in st.session_state:  # NEW
-        st.session_state.cnn_lstm_trained = False
+    if 'lstm_trained' not in st.session_state:  # ADAPTED
+        st.session_state.lstm_trained = False
     if 'data_stats' not in st.session_state:
         st.session_state.data_stats = {}
     if 'bayesian_results' not in st.session_state:
         st.session_state.bayesian_results = {}
-    if 'cnn_lstm_results' not in st.session_state:  # NEW
-        st.session_state.cnn_lstm_results = {}
+    if 'lstm_results' not in st.session_state:  # ADAPTED
+        st.session_state.lstm_results = {}
     if 'last_prediction' not in st.session_state:
         st.session_state.last_prediction = None
     if 'show_success' not in st.session_state:
@@ -130,7 +130,7 @@ def initialize_session_state():
         st.session_state.show_error = False
     if 'error_message' not in st.session_state:
         st.session_state.error_message = ""
-    if 'prediction_history' not in st.session_state:  # NEW
+    if 'prediction_history' not in st.session_state:  # ADAPTED: For LSTM sequences
         st.session_state.prediction_history = []
 
 def update_status():
@@ -138,11 +138,11 @@ def update_status():
     return {
         'data_loaded': st.session_state.data_loaded,
         'bayesian_trained': st.session_state.bayesian_trained,
-        'cnn_lstm_trained': st.session_state.cnn_lstm_trained,  # NEW
+        'lstm_trained': st.session_state.lstm_trained,  # ADAPTED
         'data_count': len(st.session_state.data_processor.processed_data) if st.session_state.data_loaded and hasattr(st.session_state.data_processor, 'processed_data') and st.session_state.data_processor.processed_data is not None else 0,
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         'bayesian_accuracy': st.session_state.bayesian_results.get('accuracy', 0) if st.session_state.bayesian_trained else 0,
-        'cnn_lstm_accuracy': st.session_state.cnn_lstm_results.get('accuracy', 0) if st.session_state.cnn_lstm_trained else 0  # NEW
+        'lstm_accuracy': st.session_state.lstm_results.get('accuracy', 0) if st.session_state.lstm_trained else 0  # ADAPTED
     }
 
 def load_data():
@@ -208,39 +208,39 @@ def train_bayesian_model():
         st.session_state.error_message = f"❌ Failed to train Bayesian model: {str(e)}"
         return False
 
-def train_cnn_lstm_model():  # NEW FUNCTION
-    """Train the CNN-LSTM model"""
+def train_lstm_model():  # ADAPTED: LSTM instead of CNN-LSTM
+    """Train the LSTM model"""
     if not st.session_state.data_loaded:
         st.session_state.show_error = True
         st.session_state.error_message = "❌ Please load data first before training the model!"
         return False
     
     try:
-        with st.spinner("Training CNN-LSTM model (this may take a while)..."):
+        with st.spinner("Training LSTM model (this may take a while)..."):
             if hasattr(st.session_state.data_processor, 'processed_data') and st.session_state.data_processor.processed_data is not None:
                 processed_df, preprocessing_metadata = st.session_state.data_processor.preprocess_data(
                     st.session_state.data_processor.processed_data
                 )
                 
-                results = st.session_state.cnn_lstm_model.train_model(processed_df, preprocessing_metadata)
-                st.session_state.cnn_lstm_trained = True
-                st.session_state.cnn_lstm_results = results
+                results = st.session_state.lstm_model.train_model(processed_df, preprocessing_metadata)
+                st.session_state.lstm_trained = True
+                st.session_state.lstm_results = results
                 st.session_state.show_success = True
                 accuracy = results.get('accuracy', 0) * 100
-                st.session_state.success_message = f"✅ CNN-LSTM Model trained successfully! Accuracy: {accuracy:.1f}%"
+                st.session_state.success_message = f"✅ LSTM Model trained successfully! Accuracy: {accuracy:.1f}%"
                 return True
             else:
                 st.session_state.show_error = True
                 st.session_state.error_message = "❌ No data available for training. Please load data first."
                 return False
     except Exception as e:
-        logger.error(f"Error training CNN-LSTM model: {e}")
+        logger.error(f"Error training LSTM model: {e}")
         st.session_state.show_error = True
-        st.session_state.error_message = f"❌ Failed to train CNN-LSTM model: {str(e)}"
+        st.session_state.error_message = f"❌ Failed to train LSTM model: {str(e)}"
         return False
 
-def train_all_models():  # NEW FUNCTION
-    """Train both Bayesian and CNN-LSTM models"""
+def train_all_models():  # ADAPTED
+    """Train both Bayesian and LSTM models"""
     if not st.session_state.data_loaded:
         st.session_state.show_error = True
         st.session_state.error_message = "❌ Please load data first before training models!"
@@ -249,7 +249,7 @@ def train_all_models():  # NEW FUNCTION
     success_count = 0
     if train_bayesian_model():
         success_count += 1
-    if train_cnn_lstm_model():
+    if train_lstm_model():
         success_count += 1
     
     if success_count == 2:
@@ -263,16 +263,14 @@ def train_all_models():  # NEW FUNCTION
     else:
         return False
 
-# ... (keep the existing visualization functions the same, just add new ones below)
-
-def create_model_comparison_plot():  # NEW FUNCTION
+def create_model_comparison_plot():  # ADAPTED
     """Create model accuracy comparison plot"""
     status = update_status()
     
-    models = ['Bayesian Network', 'CNN-LSTM']
+    models = ['Bayesian Network', 'LSTM']
     accuracies = [
         status['bayesian_accuracy'] * 100,
-        status['cnn_lstm_accuracy'] * 100
+        status['lstm_accuracy'] * 100
     ]
     
     colors = ['#FF6B6B', '#4ECDC4']
@@ -293,13 +291,13 @@ def create_model_comparison_plot():  # NEW FUNCTION
     
     return fig
 
-def create_training_history_plot():  # NEW FUNCTION
-    """Create CNN-LSTM training history plot"""
-    if not st.session_state.cnn_lstm_trained:
+def create_training_history_plot():  # ADAPTED
+    """Create LSTM training history plot"""
+    if not st.session_state.lstm_trained:
         return None
     
     try:
-        history = st.session_state.cnn_lstm_results.get('training_history', {})
+        history = st.session_state.lstm_results.get('training_history', {})
         if not history:
             return None
         
@@ -320,7 +318,7 @@ def create_training_history_plot():  # NEW FUNCTION
         ))
         
         fig.update_layout(
-            title='CNN-LSTM Training History',
+            title='LSTM Training History',
             xaxis_title='Epoch',
             yaxis_title='Accuracy',
             yaxis_range=[0, 1]
@@ -406,17 +404,17 @@ def display_data_insights():
                 except Exception:
                     st.write("Unable to display sample rows.")
 
-            # Attempt simple visualizations for expected columns
+            # Attempt simple visualizations for expected columns (ADAPTED to system features)
             numeric_cols = []
-            for col in ['scoring', 'playmaking', 'rebounding', 'defensive']:
+            for col in ['PLUS_MINUS', 'FG_PCT', 'AST', 'REB']:  # System-specific
                 if col in df.columns:
                     numeric_cols.append(col)
 
             if numeric_cols:
-                with st.expander("Talent Distribution Plots", expanded=True):
+                with st.expander("Feature Distribution Plots", expanded=True):
                     for col in numeric_cols:
                         try:
-                            fig = px.histogram(df, x=col, title=f"Distribution of {col.capitalize()}", nbins=10)
+                            fig = px.histogram(df, x=col, title=f"Distribution of {col}", nbins=10)
                             st.plotly_chart(fig, use_container_width=True)
                         except Exception:
                             st.write(f"Could not plot distribution for {col}")
@@ -435,7 +433,7 @@ def main():
     st.markdown("""
     <div class="hero-section">
         <h1>🏀 NBA Lineup Efficiency Predictor</h1>
-        <p class="lead" style="font-size: 1.2rem; margin-bottom: 0;">Using Bayesian Networks + CNN-LSTM Ensemble to predict NBA lineup performance</p>
+        <p class="lead" style="font-size: 1.2rem; margin-bottom: 0;">Using Bayesian Networks + LSTM Ensemble to predict NBA lineup performance</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -457,7 +455,7 @@ def main():
     
     status = update_status()
     
-    col1, col2, col3, col4, col5 = st.columns(5)  # Added extra column
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         status_color = "🟢" if status['data_loaded'] else "🔴"
@@ -484,13 +482,13 @@ def main():
         """, unsafe_allow_html=True)
     
     with col3:
-        status_color = "🟢" if status['cnn_lstm_trained'] else "🔴"
+        status_color = "🟢" if status['lstm_trained'] else "🔴"  # ADAPTED
         st.markdown(f"""
         <div class="status-card">
             <h3>{status_color}</h3>
-            <strong>CNN-LSTM Model</strong><br>
-            <span style="color: {'green' if status['cnn_lstm_trained'] else 'red'}">
-                {'Trained' if status['cnn_lstm_trained'] else 'Not Trained'}
+            <strong>LSTM Model</strong><br>
+            <span style="color: {'green' if status['lstm_trained'] else 'red'}">
+                {'Trained' if status['lstm_trained'] else 'Not Trained'}
             </span>
         </div>
         """, unsafe_allow_html=True)
@@ -516,7 +514,7 @@ def main():
     # Control Section
     st.header("🎮 Data & Model Controls")
     
-    col1, col2, col3, col4, col5 = st.columns(5)  # Added extra column
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         if st.button("📥 Load Sample Data", use_container_width=True, help="Load sample NBA lineup data"):
@@ -534,8 +532,8 @@ def main():
             st.rerun()
     
     with col4:
-        if st.button("🧠 Train CNN-LSTM", use_container_width=True, help="Train the CNN-LSTM model (takes longer)"):
-            train_cnn_lstm_model()
+        if st.button("🧠 Train LSTM", use_container_width=True, help="Train the LSTM model (takes longer)"):  # ADAPTED
+            train_lstm_model()
             st.rerun()
     
     with col5:
@@ -544,7 +542,7 @@ def main():
             st.rerun()
     
     # Model Comparison Section
-    if st.session_state.bayesian_trained or st.session_state.cnn_lstm_trained:
+    if st.session_state.bayesian_trained or st.session_state.lstm_trained:  # ADAPTED
         st.header("📊 Model Performance")
         
         col1, col2 = st.columns(2)
@@ -570,60 +568,68 @@ def main():
         <div class="talent-input">
         """, unsafe_allow_html=True)
         
-        st.subheader("Rate Your Lineup's Talent Levels")
+        st.subheader("Set Feature Levels (0=Low, 3=High)")
         
-        scoring = st.selectbox(
-            "🏀 Scoring Talent",
-            ["Low", "Medium", "High", "Very High"],
+        proj = st.selectbox(
+            "🔮 Projection Strength Level",
+            [0, 1, 2, 3],
             index=2,
-            help="Points per game adjusted by true shooting percentage"
+            help="LSTM-based projection strength"
         )
         
-        playmaking = st.selectbox(
-            "🔗 Playmaking Talent", 
-            ["Low", "Medium", "High", "Very High"],
-            index=1,
-            help="Assists per game"
+        fg = st.selectbox(
+            "🎯 FG% Level", 
+            [0, 1, 2, 3],
+            index=2,
+            help="Field goal percentage level"
         )
         
-        rebounding = st.selectbox(
-            "📊 Rebounding Talent",
-            ["Low", "Medium", "High", "Very High"],
-            index=1,
-            help="Rebounds per game"
+        pm = st.selectbox(
+            "📈 Plus/Minus Level",
+            [0, 1, 2, 3],
+            index=2,
+            help="On-court impact level"
         )
         
-        defensive = st.selectbox(
-            "🛡️ Defensive Talent",
-            ["Low", "Medium", "High", "Very High"],
-            index=1,
-            help="Combined steals and blocks per game"
+        net = st.selectbox(
+            "⭐ Net Rating Talent Level",
+            [0, 1, 2, 3],
+            index=2,
+            help="Lineup net rating talent"
+        )
+        
+        ast = st.selectbox(
+            "🤝 Avg Form Ratio AST Level",
+            [0, 1, 2, 3],
+            index=2,
+            help="Average form ratio for assists"
         )
         
         # Model selection for prediction
         st.subheader("🎛️ Prediction Method")
         prediction_method = st.radio(
             "Choose prediction method:",
-            ["Ensemble (Recommended)", "Bayesian Network", "CNN-LSTM"],
+            ["Ensemble (Recommended)", "Bayesian Network", "LSTM"],
             index=0,
             horizontal=True
         )
         
         if st.button("🎯 Predict Lineup Efficiency", use_container_width=True, type="primary"):
-            if not st.session_state.bayesian_trained and not st.session_state.cnn_lstm_trained:
+            if not st.session_state.bayesian_trained and not st.session_state.lstm_trained:  # ADAPTED
                 st.session_state.show_error = True
                 st.session_state.error_message = "❌ Please train at least one model first using the training buttons above!"
                 st.rerun()
             else:
                 with st.spinner("🤔 Analyzing lineup..."):
                     features = {
-                        'scoring': scoring,
-                        'playmaking': playmaking,
-                        'rebounding': rebounding,
-                        'defensive': defensive
+                        'PROJECTION_STRENGTH_LEVEL': proj,
+                        'FG_PCT_LEVEL': fg,
+                        'PLUS_MINUS_LEVEL': pm,
+                        'LINEUP_NET_RATING_TALENT_LEVEL': net,
+                        'AVG_FORM_RATIO_AST_LEVEL': ast
                     }
                     
-                    # Store current prediction in history for sequence
+                    # Store current prediction in history for sequence (ADAPTED for LSTM)
                     st.session_state.prediction_history.append(features)
                     if len(st.session_state.prediction_history) > 10:
                         st.session_state.prediction_history = st.session_state.prediction_history[-10:]
@@ -631,24 +637,24 @@ def main():
                     # Make predictions based on selected method
                     if prediction_method == "Bayesian Network" and st.session_state.bayesian_trained:
                         result = st.session_state.bayesian_model.predict_with_metadata(features)
-                    elif prediction_method == "CNN-LSTM" and st.session_state.cnn_lstm_trained:
+                    elif prediction_method == "LSTM" and st.session_state.lstm_trained:  # ADAPTED
                         # Create sequence from prediction history
-                        sequence = st.session_state.cnn_lstm_model.create_sequence_from_talents(st.session_state.prediction_history)
-                        result = st.session_state.cnn_lstm_model.predict_single(sequence)
+                        sequence = st.session_state.lstm_model.create_sequence_from_talents(st.session_state.prediction_history)
+                        result = st.session_state.lstm_model.predict_single(sequence)
                     else:  # Ensemble or fallback
                         bayesian_result = st.session_state.bayesian_model.predict_with_metadata(features) if st.session_state.bayesian_trained else None
-                        cnn_lstm_result = None
+                        lstm_result = None  # ADAPTED
                         
-                        if st.session_state.cnn_lstm_trained:
-                            sequence = st.session_state.cnn_lstm_model.create_sequence_from_talents(st.session_state.prediction_history)
-                            cnn_lstm_result = st.session_state.cnn_lstm_model.predict_single(sequence)
+                        if st.session_state.lstm_trained:
+                            sequence = st.session_state.lstm_model.create_sequence_from_talents(st.session_state.prediction_history)
+                            lstm_result = st.session_state.lstm_model.predict_single(sequence)
                         
-                        if bayesian_result and cnn_lstm_result and bayesian_result['success'] and cnn_lstm_result['success']:
-                            result = st.session_state.cnn_lstm_model.ensemble_predict(bayesian_result, cnn_lstm_result)
+                        if bayesian_result and lstm_result and bayesian_result['success'] and lstm_result['success']:
+                            result = st.session_state.lstm_model.ensemble_predict(bayesian_result, lstm_result)  # ADAPTED
                         elif bayesian_result and bayesian_result['success']:
                             result = bayesian_result
-                        elif cnn_lstm_result and cnn_lstm_result['success']:
-                            result = cnn_lstm_result
+                        elif lstm_result and lstm_result['success']:
+                            result = lstm_result
                         else:
                             result = {'success': False, 'message': 'No trained models available for prediction'}
                     
@@ -664,10 +670,9 @@ def main():
                         
                         # Main prediction with color coding
                         efficiency_color = {
-                            'Very Poor': 'red',
-                            'Poor': 'orange', 
-                            'Good': 'blue',
-                            'Excellent': 'green'
+                            'Low': 'red',
+                            'Medium': 'orange', 
+                            'High': 'green'
                         }[prediction['predicted_efficiency']]
                         
                         st.markdown(f"""
@@ -686,7 +691,7 @@ def main():
                             st.plotly_chart(fig_prob, use_container_width=True)
                         
                         # Show model comparison if ensemble
-                        if prediction.get('model_type') == 'Ensemble (Bayesian + CNN-LSTM)':
+                        if prediction.get('model_type') == 'Ensemble (BN + LSTM)':  # ADAPTED
                             st.markdown("""
                             <div class="model-comparison">
                                 <h5>🧠 Ensemble Component Predictions:</h5>
@@ -704,27 +709,29 @@ def main():
                             
                             with col2:
                                 st.metric(
-                                    "CNN-LSTM", 
-                                    comp['cnn_lstm']['predicted_efficiency'],
-                                    f"{comp['cnn_lstm']['probability']*100:.1f}%"
+                                    "LSTM",  # ADAPTED
+                                    comp['lstm']['predicted_efficiency'],
+                                    f"{comp['lstm']['probability']*100:.1f}%"
                                 )
                             
                             st.markdown("</div>", unsafe_allow_html=True)
                         
                         st.markdown("</div>", unsafe_allow_html=True)
                         
-                        # Display talent summary
-                        st.subheader("📋 Your Lineup Summary")
-                        col1, col2, col3, col4 = st.columns(4)
+                        # Display feature summary (ADAPTED)
+                        st.subheader("📋 Your Feature Summary")
+                        col1, col2, col3, col4, col5 = st.columns(5)
                         
                         with col1:
-                            st.metric("Scoring", scoring, delta=None, delta_color="off")
+                            st.metric("Projection Strength", proj, delta=None, delta_color="off")
                         with col2:
-                            st.metric("Playmaking", playmaking, delta=None, delta_color="off")
+                            st.metric("FG%", fg, delta=None, delta_color="off")
                         with col3:
-                            st.metric("Rebounding", rebounding, delta=None, delta_color="off")
+                            st.metric("Plus/Minus", pm, delta=None, delta_color="off")
                         with col4:
-                            st.metric("Defense", defensive, delta=None, delta_color="off")
+                            st.metric("Net Rating", net, delta=None, delta_color="off")
+                        with col5:
+                            st.metric("AST Form Ratio", ast, delta=None, delta_color="off")
                             
                     else:
                         st.session_state.show_error = True
@@ -747,7 +754,7 @@ def main():
         st.markdown("""
         <div class="metric-card">
         <h4>🎯 How It Works</h4>
-        <p>This system uses <strong>Ensemble Learning</strong> combining Bayesian Networks and CNN-LSTM to predict NBA lineup efficiency:</p>
+        <p>This system uses <strong>Ensemble Learning</strong> combining Bayesian Networks and LSTM to predict NBA lineup efficiency:</p>
         
         <h5>🤖 Bayesian Network</h5>
         <ul>
@@ -756,11 +763,11 @@ def main():
             <li>Excellent for categorical data relationships</li>
         </ul>
         
-        <h5>🧠 CNN-LSTM</h5>
+        <h5>🧠 LSTM</h5>  <!-- ADAPTED -->
         <ul>
-            <li>Deep learning with convolutional and recurrent layers</li>
-            <li>Captures temporal patterns in lineup sequences</li>
-            <li>Better for complex, non-linear relationships</li>
+            <li>Deep learning recurrent network for time-series</li>
+            <li>Captures temporal patterns in player sequences</li>
+            <li>Better for forecasting player form trends</li>
         </ul>
         
         <h5>🚀 Ensemble Method</h5>
@@ -769,13 +776,14 @@ def main():
             <li>Weighted average of predictions</li>
             <li>More robust and accurate results</li>
         </ul>
-        f
-        <p><strong>Talent Dimensions:</strong></p>
+        
+        <p><strong>Feature Dimensions:</strong></p>  <!-- ADAPTED -->
         <ul>
-            <li><strong>🏀 Scoring:</strong> Points per game, shooting efficiency</li>
-            <li><strong>🔗 Playmaking:</strong> Assists per game, court vision</li>
-            <li><strong>📊 Rebounding:</strong> Rebounds per game</li>
-            <li><strong>🛡️ Defense:</strong> Steals, blocks, defensive impact</li>
+            <li><strong>🔮 Projection Strength:</strong> LSTM-based player forecasts</li>
+            <li><strong>🎯 FG%:</strong> Shooting efficiency level</li>
+            <li><strong>📈 Plus/Minus:</strong> On-court impact</li>
+            <li><strong>⭐ Net Rating:</strong> Lineup talent rating</li>
+            <li><strong>🤝 AST Form Ratio:</strong> Playmaking form from sequences</li>
         </ul>
         </div>
         """, unsafe_allow_html=True)
@@ -784,8 +792,8 @@ def main():
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center; color: #666;'>"
-        "NBA Lineup Efficiency Predictor • Bayesian + CNN-LSTM Ensemble • "
-        "Built with Streamlit • Data: Simulated NBA Lineup Statistics"
+        "NBA Lineup Efficiency Predictor • Bayesian + LSTM Ensemble • "
+        "Built with Streamlit • Data: NBA API 2023-24 Lineups"
         "</div>",
         unsafe_allow_html=True
     )
